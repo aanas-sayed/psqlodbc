@@ -346,7 +346,18 @@ jobs:
         # When setup-msvc-dev uses amd64_arm64, VSCMD_ARG_TGT_ARCH=arm64
         # and meson should auto-detect, but we make it explicit.
         $crossFile = "arm64-msvc.ini"
-        '[host_machine]', 'system = ''windows''', 'cpu_family = ''aarch64''', 'cpu = ''arm64''', 'endian = ''little''' | Set-Content $crossFile
+        @(
+          '[host_machine]',
+          'system = ''windows''',
+          'cpu_family = ''aarch64''',
+          'cpu = ''arm64''',
+          'endian = ''little''',
+          '',
+          '[binaries]',
+          'c = ''cl''',
+          'cpp = ''cl''',
+          'ar = ''lib'''
+        ) | Set-Content $crossFile
 
         # Configure for ARM64 cross-compilation with SSL support.
         meson setup buildarm64 --cross-file $crossFile -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssluniversal\lib\VC\arm64\MT -Dextra_include_dirs=c:\OTHERBIN\openssluniversal\include --prefix=d:\postgresqlarm64
