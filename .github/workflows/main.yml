@@ -149,7 +149,7 @@ jobs:
     - name: Install Win32 OpenSSL
       if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWin32OpenSSL.outputs.cache-hit != 'true'
       shell: cmd
-      run: Win32OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl32
+      run: Win32OpenSSL.exe /verysilent /sp- /suppressmsgboxes /dir=c:\OTHERBIN\openssl32
 
     - name: Cache Win64 OpenSSL
       if: steps.cachePostgres.outputs.cache-hit != 'true'
@@ -169,7 +169,7 @@ jobs:
     - name: Install Win64 OpenSSL
       if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWin64OpenSSL.outputs.cache-hit != 'true'
       shell: cmd
-      run: Win64OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl64
+      run: Win64OpenSSL.exe /verysilent /sp- /suppressmsgboxes /dir=c:\OTHERBIN\openssl64
 
     # -----------------------------------------------------------------
     # Build PostgreSQL x64 (full server with SSL)
@@ -329,7 +329,7 @@ jobs:
     - name: Install ARM64 OpenSSL
       if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheArm64OpenSSL.outputs.cache-hit != 'true'
       shell: cmd
-      run: WinUniversalOpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssluniversal
+      run: WinUniversalOpenSSL.exe /verysilent /sp- /suppressmsgboxes /dir=c:\OTHERBIN\openssluniversal
 
     - name: Setup MSVC amd64_arm64 (cross-compile for ARM64)
       if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
