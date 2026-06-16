@@ -337,6 +337,21 @@ jobs:
       with:
         arch: amd64_arm64
 
+    - name: Inspect OpenSSL universal install layout
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Write-Host "=== c:\OTHERBIN\openssluniversal top-level ===" -ForegroundColor Cyan
+        Get-ChildItem c:\OTHERBIN\openssluniversal -ErrorAction SilentlyContinue | Select-Object Name,PSIsContainer
+        Write-Host "=== include\ ===" -ForegroundColor Cyan
+        Get-ChildItem c:\OTHERBIN\openssluniversal\include -ErrorAction SilentlyContinue | Select-Object Name | Select-Object -First 10
+        Write-Host "=== lib\VC (if exists) ===" -ForegroundColor Cyan
+        Get-ChildItem c:\OTHERBIN\openssluniversal\lib\VC -Recurse -Directory -ErrorAction SilentlyContinue | Select-Object FullName
+        Write-Host "=== bin\ subdirs ===" -ForegroundColor Cyan
+        Get-ChildItem c:\OTHERBIN\openssluniversal\bin -Directory -ErrorAction SilentlyContinue | Select-Object Name
+        Write-Host "=== System OpenSSL (pkg-config risk) ===" -ForegroundColor Cyan
+        Get-ChildItem "C:\Program Files\OpenSSL" -ErrorAction SilentlyContinue | Select-Object Name,PSIsContainer
+
     - name: Build PostgreSQL ARM64 client library
       if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
       working-directory: postgres
@@ -358,6 +373,15 @@ jobs:
           'cpp = ''cl''',
           'ar = ''lib'''
         ) | Set-Content $crossFile
+
+        # Add OpenSSL ARM64 paths to MSVC environment variables so CL.exe finds
+        # the headers/libs unconditionally, regardless of pkg-config resolution.
+        # This prevents the system OpenSSL (x64, no dev headers) from winning.
+        $env:INCLUDE = "c:\OTHERBIN\openssluniversal\include;$env:INCLUDE"
+        $env:LIB = "c:\OTHERBIN\openssluniversal\lib\VC\arm64\MT;$env:LIB"
+
+        # Clear PKG_CONFIG_PATH so pkgconfiglite doesn't find the system OpenSSL.
+        $env:PKG_CONFIG_PATH = ""
 
         # Configure for ARM64 cross-compilation with SSL support.
         meson setup buildarm64 --cross-file $crossFile -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssluniversal\lib\VC\arm64\MT -Dextra_include_dirs=c:\OTHERBIN\openssluniversal\include --prefix=d:\postgresqlarm64
