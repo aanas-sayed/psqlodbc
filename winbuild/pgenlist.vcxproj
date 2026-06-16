@@ -9,6 +9,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
@@ -16,6 +20,10 @@
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -54,6 +62,21 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <GenerateImportLib>true</GenerateImportLib>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <GenerateImportLib>true</GenerateImportLib>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -67,6 +90,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" >
@@ -87,11 +116,12 @@
   <PropertyGroup Condition="'$(Platform)'=='Win32'">
     <TARGET_CPU>x86</TARGET_CPU>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Platform)'!='Win32'">
+  <PropertyGroup Condition="'$(Platform)'=='x64'">
     <TARGET_CPU>x64</TARGET_CPU>
   </PropertyGroup>
-
-  <Import Project="psqlodbc.Cpp.props" />
+  <PropertyGroup Condition="'$(Platform)'=='ARM64'">
+    <TARGET_CPU>arm64</TARGET_CPU>
+  </PropertyGroup>
   <PropertyGroup>
 	  <ObjbaseDir Condition="'$(ObjbaseDir)'==''">$(srcPath)</ObjbaseDir>
 	  <IntDir>$(ObjbaseDir)$(TARGET_CPU)_$(TargetType)_$(Configuration)\pgenlist\</IntDir>
@@ -104,10 +134,16 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
 
@@ -192,6 +228,44 @@
     </ClCompile>
     <ImpLib Condition="'$(GenerateImportLib)'=='true'">
       <TargetMachine>MachineX64</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>XOLEHLP.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>xolehlp.lib;$(Drivername).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_HANDLE_ENLIST_IN_DTC_;_CRT_SECURE_NO_DEPRECATE;WIN32;_DEBUG;_WINDOWS;_USRDLL;PGENLIST_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineARM64</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>XOLEHLP.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>xolehlp.lib;$(Drivername).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_HANDLE_ENLIST_IN_DTC_;_CRT_SECURE_NO_DEPRECATE;WIN32;NDEBUG;_WINDOWS;_USRDLL;PGENLIST_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineARM64</TargetMachine>
       <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </ImpLib>

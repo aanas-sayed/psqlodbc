@@ -31,7 +31,7 @@
 #	build 32bit and/or 64bit installers
 #
 Param(
-[ValidateSet("x86", "x64", "both")]
+[ValidateSet("x86", "x64", "arm64", "both")]
 [string]$cpu="both",
 [switch]$AlongWithDrivers,
 [switch]$ExcludeRuntime,
@@ -302,9 +302,12 @@ $configInfo = LoadConfiguration $BuildConfigPath $defaultConfigDir
 if ($AlongWithDrivers) {
 	try {
 		pushd "$scriptpath"
-		$platform = $cpu
 		if ($cpu -eq "x86") {
 			$platform = "win32"
+		} elseif ($cpu -eq "arm64") {
+			$platform = "ARM64"
+		} else {
+			$platform = $cpu
 		}
 		..\winbuild\BuildAll.ps1 -Platform $platform -BuildConfigPath "$BuildConfigPath"
 		if ($LASTEXITCODE -ne 0) {
@@ -338,6 +341,7 @@ try {
 	if ($cpu -eq "both") {
 		buildInstaller "x86"
 		buildInstaller "x64"
+		buildInstaller "arm64"
 		Write-Host "wRedist=$wRedist"
 		Remove-Module Psqlodbc-config
 		try {

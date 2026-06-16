@@ -33,6 +33,16 @@
 <?else?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?endif?>
+<?elseif $(sys.BUILDARCH) = arm64 ?>
+  <?define Platform = "arm64" ?>
+  <?define ModuleName = "psqlODBC_arm64" ?>
+  <?define BIT64 = "yes" ?>
+  <?define ANSIFOLDER = "arm64_ANSI_Release" ?>
+  <?define UNICODEFOLDER = "arm64_Unicode_Release" ?>
+  <?define Module_PackageId = "C3E7F9B2-4A1D-4E8F-B5C6-D2A3F1E09D47" ?>
+  <?define InstallerVersion = "500" ?>
+  <?define GUIDSEED = "7D9E2F3A-5B6C-4D1E-A8F0-B9C2D3E4F501" ?>
+  <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?else?><!-- sys.BUILDARCH -->
   <?error Invalid build architecture ?>
 <?endif?>

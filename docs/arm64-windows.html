@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> <html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Building psqlODBC for Windows ARM64</title>
+    <script src="frame_adjust.js" language="javascript"></script>
+  </head>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+
+<h1>Building psqlODBC for Windows ARM64</h1>
+
+<p>
+This page describes how to build the PostgreSQL ODBC Driver for the Windows
+ARM64 architecture. ARM64 support is a fork-specific addition; the upstream
+psqlODBC project does not yet ship ARM64 binaries.
+</p>
+
+<h2>Background</h2>
+
+<p>
+There is currently no official EDB/EnterpriseDB installer that ships an ARM64
+build of libpq for Windows. As a result, ARM64 builds require either:
+</p>
+
+<ul>
+  <li>Building PostgreSQL (or at minimum libpq) from source for ARM64, or</li>
+  <li>Obtaining a pre-built ARM64 libpq from another trusted source.</li>
+</ul>
+
+<p>
+The GitHub Actions CI workflow in this fork handles this automatically by
+cross-compiling libpq from the PostgreSQL source. See
+<tt>.github/workflows/main.yml</tt> (the <tt>build-postgres-arm64</tt> job)
+for the exact steps.
+</p>
+
+<h2>Prerequisites</h2>
+
+<ul>
+  <li>
+    <strong>Visual Studio 2022</strong> (v143 toolset) with the
+    <em>MSVC ARM64 build tools</em> component installed.
+    The ARM64 target requires at minimum toolset v143; the older
+    <tt>v120_xp</tt> toolset used for x86/x64 does not support ARM64.
+  </li>
+  <li>
+    <strong>ARM64 libpq</strong> &mdash; the PostgreSQL client library and
+    headers compiled for ARM64. See the section below on obtaining this.
+  </li>
+  <li>
+    <strong>WiX Toolset v6</strong> (optional, required only for building
+    the installer). Install via:
+    <pre>dotnet tool install --global wix --version "6.*"
+wix extension add --global WixToolset.UI.wixext/6.0.0</pre>
+  </li>
+</ul>
+
+<h2>Obtaining ARM64 libpq</h2>
+
+<h3>Option A: Build from source (recommended)</h3>
+
+<p>
+This is the method used by the CI workflow. You need a
+cross-compilation toolchain (MSVC <tt>amd64_arm64</tt>) and meson/ninja.
+</p>
+
+<pre>
+  # Install build tools
+  python -m pip install meson ninja
+
+  # Check out PostgreSQL source
+  git clone --branch REL_18_STABLE https://github.com/postgres/postgres.git
+  cd postgres
+
+  # Set up MSVC amd64_arm64 cross-compilation environment, then:
+  meson setup buildarm64 --cross-file arm64-msvc.ini ^
+        -Dssl=openssl ^
+        -Dextra_lib_dirs=&lt;path-to-arm64-openssl&gt;\lib\VC\arm64\MT ^
+        -Dextra_include_dirs=&lt;path-to-arm64-openssl&gt;\include ^
+        --prefix=D:\postgresqlarm64
+
+  meson compile -C buildarm64 src/interfaces/libpq/libpq:shared_library
+
+  # Collect the files needed by the ODBC driver build
+  mkdir D:\postgresqlarm64\lib D:\postgresqlarm64\bin D:\postgresqlarm64\include
+  copy buildarm64\...\libpq.lib D:\postgresqlarm64\lib\
+  copy buildarm64\...\libpq.dll D:\postgresqlarm64\bin\
+  xcopy /s src\include D:\postgresqlarm64\include\
+</pre>
+
+<p>
+The <tt>arm64-msvc.ini</tt> cross-file should contain:
+</p>
+
+<pre>
+  [host_machine]
+  system = 'windows'
+  cpu_family = 'aarch64'
+  cpu = 'arm64'
+  endian = 'little'
+</pre>
+
+<h3>Option B: Extract from a CI artifact</h3>
+
+<p>
+Download the ARM64 libpq from a successful CI run of the
+<tt>build-postgres-arm64</tt> job in this repository, if available.
+</p>
+
+<h2>Configuring the Build</h2>
+
+<p>
+Edit (or create) <tt>winbuild\configuration.xml</tt> and set the
+<tt>&lt;arm64&gt;</tt> section to point to your ARM64 libpq directories:
+</p>
+
+<pre>
+  &lt;arm64&gt;
+    &lt;libpq version=""&gt;
+      &lt;include&gt;D:\postgresqlarm64\include&lt;/include&gt;
+      &lt;lib&gt;D:\postgresqlarm64\lib&lt;/lib&gt;
+      &lt;bin&gt;D:\postgresqlarm64\bin&lt;/bin&gt;
+    &lt;/libpq&gt;
+    &lt;setvcvars&gt;&lt;/setvcvars&gt;
+    &lt;build_macros&gt;&lt;/build_macros&gt;
+    &lt;runtime_folder&gt;&lt;/runtime_folder&gt;
+  &lt;/arm64&gt;
+</pre>
+
+<p>
+Unlike x86 and x64, there is no "default" path for ARM64 &mdash; paths must
+be set explicitly. The build will fail with a clear error if they are missing.
+</p>
+
+<h2>Building</h2>
+
+<p>
+Open a PowerShell prompt with the MSVC ARM64 (or amd64_arm64) environment
+active, then run:
+</p>
+
+<pre>
+  cd &lt;psqlodbc-source-dir&gt;
+  .\winbuild\BuildAll.ps1 -Platform ARM64
+</pre>
+
+<p>
+To build <em>only</em> ARM64 (skipping x86 and x64):
+</p>
+
+<pre>
+  .\winbuild\BuildAll.ps1 -Platform ARM64 -Configuration Release
+</pre>
+
+<p>
+The output DLLs are placed under:
+<tt>&lt;source&gt;\arm64_Unicode_Release\</tt> and
+<tt>&lt;source&gt;\arm64_ANSI_Release\</tt>.
+</p>
+
+<h2>Building the Installer</h2>
+
+<pre>
+  .\installer\buildInstallers.ps1 -cpu arm64
+</pre>
+
+<p>
+This produces <tt>installer\arm64\psqlodbc_arm64.msi</tt> and
+<tt>psqlodbc_arm64.msm</tt>.
+</p>
+
+<h2>CI / Automated Releases</h2>
+
+<p>
+Pushing a tag matching <tt>REL-*</tt> to this fork triggers the full CI
+pipeline, which:
+</p>
+
+<ol>
+  <li>Cross-compiles ARM64 libpq from the PostgreSQL source.</li>
+  <li>Builds and packages ARM64 psqlODBC.</li>
+  <li>Creates a GitHub Release containing x86, x64, and ARM64 installers.</li>
+</ol>
+
+<p>
+No local setup is required to produce release artifacts; just push a tag.
+</p>
+
+  </body>
+</html>

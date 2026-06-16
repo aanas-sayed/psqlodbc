@@ -10,6 +10,17 @@ function InitConfiguration([string]$savePath)
 		$x64info.libpq.include = ""
 		$x64info.libpq.lib = ""
 		$x64info.libpq.bin = ""
+		$arm64info = $configInfo.Configuration.arm64
+		$arm64info.libpq.include = ""
+		$arm64info.libpq.lib = ""
+		$arm64info.libpq.bin = ""
+	}
+	elseif ($env:PROCESSOR_ARCHITECTURE -ine "ARM64")
+	{
+		$arm64info = $configInfo.Configuration.arm64
+		$arm64info.libpq.include = ""
+		$arm64info.libpq.lib = ""
+		$arm64info.libpq.bin = ""
 	}
 	$configInfo.save($savePath)
 
@@ -106,6 +117,8 @@ function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 {
 	if ($Platform -ieq "x64") {
 		$platinfo=$configInfo.Configuration.x64
+	} elseif ($Platform -ieq "arm64") {
+		$platinfo=$configInfo.Configuration.arm64
 	} else {
 		$platinfo=$configInfo.Configuration.x86
 	}
@@ -126,6 +139,10 @@ function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 		} else {
 			$pgmfs = $env:ProgramFiles
 		}
+	} elseif ($Platform -ieq "arm64") {
+		# ARM64 PostgreSQL has no standard installer location yet.
+		# Users must set explicit paths in configuration.xml.
+		throw("No default ARM64 PostgreSQL directory.`nPlease set explicit arm64 libpq paths in configuration.xml`n(see winbuild\editConfiguration.ps1 or edit directly)")
 	} else {
 		if ($env:PROCESSOR_ARCHITECTURE -ieq "x86") {
 			$pgmfs = $env:ProgramFiles

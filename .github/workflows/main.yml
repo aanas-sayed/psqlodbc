@@ -20,6 +20,7 @@ env:
   PKGCONFIGLITE_VERSION: '0.28-1'
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
+  WORKFLOW_VERSION_POSTGRESQL_ARM64: '1' # increment to invalidate arm64 cache
 
   # PostgreSQL x64 test server (EDB installer).
   POSTGRESQL_PACKAGE_FILEID: '1259019'
@@ -49,11 +50,6 @@ jobs:
           d:\postgresql
           d:\postgresql86
         key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL}}
-
-    # -----------------------------------------------------------------
-    # Source code
-    # -----------------------------------------------------------------
-    - name: Cache PostgreSQL source
       if: steps.cachePostgres.outputs.cache-hit != 'true'
       uses: actions/cache@v4
       id: cachePgSource
@@ -229,6 +225,148 @@ jobs:
         Copy-Item c:\OTHERBIN\openssl32\*.dll d:\postgresql86\bin\
 
   # =====================================================================
+  # Build PostgreSQL ARM64 libpq (cross-compiled from x64)
+  # =====================================================================
+  build-postgres-arm64:
+    runs-on: windows-latest
+
+    steps:
+    - name: Cache PostgreSQL ARM64 libpq output
+      uses: actions/cache@v4
+      id: cachePostgresArm64
+      with:
+        path: d:\postgresqlarm64
+        key: postgresql-arm64-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL_ARM64}}
+
+    - name: Cache PostgreSQL source
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cachePgSourceArm64
+      with:
+        path: postgres
+        key: pg-source-${{env.POSTGRESQL_SOURCE_TAG}}
+    - name: Get PostgreSQL source
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cachePgSourceArm64.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: "postgres/postgres.git"
+        ref: ${{env.POSTGRESQL_SOURCE_TAG}}
+        path: postgres
+
+    - name: Install meson and ninja
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      run: python -m pip install meson ninja
+
+    - name: Cache winflexbison
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cacheWinFlexBisonArm64
+      with:
+        path: C:\OTHERBIN\winflexbison
+        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download winflexbison
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheWinFlexBisonArm64.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      with:
+        retry-times: 5
+        url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-${{env.WINFLEXBISON_VERSION}}.zip
+        filename: win_flex_bison.zip
+    - name: Extract winflexbison
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheWinFlexBisonArm64.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\winflexbison"
+        7z x win_flex_bison.zip -o"C:\OTHERBIN\winflexbison"
+    - name: Add winflexbison to PATH
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      shell: cmd
+      run: printf "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+
+    - name: Cache pkgconfiglite
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cachePkgConfigLiteArm64
+      with:
+        path: C:\OTHERBIN\pkgconfiglite
+        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download pkgconfiglite
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cachePkgConfigLiteArm64.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      with:
+        retry-times: 5
+        url: http://downloads.sourceforge.net/project/pkgconfiglite/${{env.PKGCONFIGLITE_VERSION}}/pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}_bin-win32.zip
+        filename: pkg-config-lite_bin-win32.zip
+    - name: Extract pkgconfiglite
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cachePkgConfigLiteArm64.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\pkgconfiglite"
+        7z x pkg-config-lite_bin-win32.zip -o"C:\OTHERBIN\pkgconfiglite"
+    - name: Add pkgconfiglite to PATH
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      shell: cmd
+      run: printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
+
+    - name: Cache ARM64 OpenSSL
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cacheArm64OpenSSL
+      with:
+        path: C:\OTHERBIN\opensslarm64
+        key: WinArm64OpenSSL-${{env.OPENSSL_VERSION}}
+    - name: Download ARM64 OpenSSL
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheArm64OpenSSL.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      with:
+        retry-times: 5
+        url: https://slproweb.com/download/WinArm64OpenSSL-${{env.OPENSSL_VERSION}}.exe
+        filename: WinArm64OpenSSL.exe
+    - name: Install ARM64 OpenSSL
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheArm64OpenSSL.outputs.cache-hit != 'true'
+      shell: cmd
+      run: WinArm64OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\opensslarm64
+
+    - name: Setup MSVC amd64_arm64 (cross-compile for ARM64)
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: amd64_arm64
+
+    - name: Build PostgreSQL ARM64 client library
+      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
+      working-directory: postgres
+      shell: pwsh
+      run: |
+        # Create meson cross-file for ARM64 target with MSVC.
+        # When setup-msvc-dev uses amd64_arm64, VSCMD_ARG_TGT_ARCH=arm64
+        # and meson should auto-detect, but we make it explicit.
+        $crossFile = "arm64-msvc.ini"
+        @"
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'arm64'
+endian = 'little'
+"@ | Set-Content $crossFile
+
+        # Configure for ARM64 cross-compilation with SSL support.
+        meson setup buildarm64 --cross-file $crossFile -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\opensslarm64\lib\VC\arm64\MT -Dextra_include_dirs=c:\OTHERBIN\opensslarm64\include --prefix=d:\postgresqlarm64
+
+        # Build only the libpq client library.
+        meson compile -C buildarm64 src/interfaces/libpq/libpq:shared_library
+
+        # Install only the files needed for compiling and linking the ARM64 ODBC driver.
+        New-Item -ItemType Directory -Path d:\postgresqlarm64\lib, d:\postgresqlarm64\bin, d:\postgresqlarm64\include -Force
+        Get-ChildItem buildarm64 -Recurse -Filter "libpq.lib" | Copy-Item -Destination d:\postgresqlarm64\lib\
+        Get-ChildItem buildarm64 -Recurse -Filter "libpq.dll" | Copy-Item -Destination d:\postgresqlarm64\bin\
+        Copy-Item -Recurse src\include d:\postgresqlarm64\include
+        Copy-Item c:\OTHERBIN\opensslarm64\*.dll d:\postgresqlarm64\bin\
+
+  # =====================================================================
   # Build and test psqlodbc (standard and mimalloc, in parallel)
   # =====================================================================
   build-and-test:
@@ -392,10 +530,71 @@ jobs:
         if-no-files-found: error
 
   # =====================================================================
+  # Build psqlodbc ARM64 (cross-compiled, no tests)
+  # =====================================================================
+  build-arm64:
+    needs: build-postgres-arm64
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [standard]
+
+    steps:
+    - name: Restore PostgreSQL ARM64 build from cache
+      uses: actions/cache/restore@v4
+      with:
+        path: d:\postgresqlarm64
+        key: postgresql-arm64-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL_ARM64}}
+        fail-on-cache-miss: true
+
+    - name: Checkout psqlodbc
+      uses: actions/checkout@v4
+      with:
+        path: psqlodbc
+        submodules: true
+
+    - name: Setup MSVC amd64_arm64 (cross-compile for ARM64)
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: amd64_arm64
+
+    - name: Install WiX
+      shell: cmd
+      run: |
+        dotnet tool install --global wix --version "6.*"
+        wix extension add --global WixToolset.UI.wixext/6.0.0
+
+    - name: Build psqlodbc ARM64
+      shell: powershell
+      working-directory: psqlodbc
+      run: |
+        copy .github\workflows\configuration.xml winbuild
+        winbuild\BuildAll.ps1 -Platform ARM64
+        installer\buildInstallers.ps1 -cpu arm64
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\arm64-${{matrix.variant}}
+
+    - name: Upload ARM64 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC arm64 ${{matrix.variant}} Merge Module
+        path: psqlodbc/winbuild/arm64-${{matrix.variant}}/installer/arm64/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload ARM64 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC arm64 ${{matrix.variant}} Installer
+        path: psqlodbc/winbuild/arm64-${{matrix.variant}}/installer/arm64/*.msi
+        retention-days: 5
+        if-no-files-found: error
+
+  # =====================================================================
   # Release (only on version tags)
   # =====================================================================
   release:
-    needs: build-and-test
+    needs: [build-and-test, build-arm64]
     if: startsWith(github.ref, 'refs/tags/REL-')
     runs-on: windows-latest
 
@@ -425,4 +624,4 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "artifacts/psqlODBC standard*/**/*"
+        artifacts: "artifacts/psqlODBC standard*/**/*,artifacts/psqlODBC arm64*/**/*"
