@@ -50,6 +50,7 @@ jobs:
           d:\postgresql
           d:\postgresql86
         key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL}}
+    - name: Cache PostgreSQL source
       if: steps.cachePostgres.outputs.cache-hit != 'true'
       uses: actions/cache@v4
       id: cachePgSource
