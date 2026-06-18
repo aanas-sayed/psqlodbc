@@ -185,7 +185,7 @@ try {
 #
 #	build ARM64 dlls
 #
-	if ($recordResult -and ($Platform -ieq "ARM64" -or $Platform -ieq "both")) {
+	if ($recordResult -and $Platform -ieq "ARM64") {
 		buildPlatform $configInfo "ARM64"
 		if ($LastExitCode -ne 0) {
 			$recordResult = $false

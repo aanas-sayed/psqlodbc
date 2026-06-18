@@ -20,7 +20,7 @@ env:
   PKGCONFIGLITE_VERSION: '0.28-1'
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
-  WORKFLOW_VERSION_POSTGRESQL_ARM64: '1' # increment to invalidate arm64 cache
+  WORKFLOW_VERSION_POSTGRESQL_ARM64: '2' # increment to invalidate arm64 cache
 
   # PostgreSQL x64 test server (EDB installer).
   POSTGRESQL_PACKAGE_FILEID: '1259019'
@@ -312,45 +312,11 @@ jobs:
       shell: cmd
       run: printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
 
-    - name: Cache ARM64 OpenSSL
-      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
-      uses: actions/cache@v4
-      id: cacheArm64OpenSSL
-      with:
-        path: C:\OTHERBIN\openssluniversal
-        key: WinUniversalOpenSSL-${{env.OPENSSL_VERSION}}
-    - name: Download ARM64 OpenSSL
-      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheArm64OpenSSL.outputs.cache-hit != 'true'
-      uses: suisei-cn/actions-download-file@v1.6.0
-      with:
-        retry-times: 5
-        url: https://slproweb.com/download/WinUniversalOpenSSL-${{env.OPENSSL_VERSION}}.exe
-        filename: WinUniversalOpenSSL.exe
-    - name: Install ARM64 OpenSSL
-      if: steps.cachePostgresArm64.outputs.cache-hit != 'true' && steps.cacheArm64OpenSSL.outputs.cache-hit != 'true'
-      shell: cmd
-      run: WinUniversalOpenSSL.exe /verysilent /sp- /suppressmsgboxes /dir=c:\OTHERBIN\openssluniversal
-
     - name: Setup MSVC amd64_arm64 (cross-compile for ARM64)
       if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with:
         arch: amd64_arm64
-
-    - name: Inspect OpenSSL universal install layout
-      if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
-      shell: pwsh
-      run: |
-        Write-Host "=== c:\OTHERBIN\openssluniversal top-level ===" -ForegroundColor Cyan
-        Get-ChildItem c:\OTHERBIN\openssluniversal -ErrorAction SilentlyContinue | Select-Object Name,PSIsContainer
-        Write-Host "=== include\ ===" -ForegroundColor Cyan
-        Get-ChildItem c:\OTHERBIN\openssluniversal\include -ErrorAction SilentlyContinue | Select-Object Name | Select-Object -First 10
-        Write-Host "=== lib\VC (if exists) ===" -ForegroundColor Cyan
-        Get-ChildItem c:\OTHERBIN\openssluniversal\lib\VC -Recurse -Directory -ErrorAction SilentlyContinue | Select-Object FullName
-        Write-Host "=== bin\ subdirs ===" -ForegroundColor Cyan
-        Get-ChildItem c:\OTHERBIN\openssluniversal\bin -Directory -ErrorAction SilentlyContinue | Select-Object Name
-        Write-Host "=== System OpenSSL (pkg-config risk) ===" -ForegroundColor Cyan
-        Get-ChildItem "C:\Program Files\OpenSSL" -ErrorAction SilentlyContinue | Select-Object Name,PSIsContainer
 
     - name: Build PostgreSQL ARM64 client library
       if: steps.cachePostgresArm64.outputs.cache-hit != 'true'
@@ -374,17 +340,10 @@ jobs:
           'ar = ''lib'''
         ) | Set-Content $crossFile
 
-        # Add OpenSSL ARM64 paths to MSVC environment variables so CL.exe finds
-        # the headers/libs unconditionally, regardless of pkg-config resolution.
-        # This prevents the system OpenSSL (x64, no dev headers) from winning.
-        $env:INCLUDE = "c:\OTHERBIN\openssluniversal\include;$env:INCLUDE"
-        $env:LIB = "c:\OTHERBIN\openssluniversal\lib\VC\arm64\MT;$env:LIB"
-
-        # Clear PKG_CONFIG_PATH so pkgconfiglite doesn't find the system OpenSSL.
-        $env:PKG_CONFIG_PATH = ""
-
-        # Configure for ARM64 cross-compilation with SSL support.
-        meson setup buildarm64 --cross-file $crossFile -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssluniversal\lib\VC\arm64\MT -Dextra_include_dirs=c:\OTHERBIN\openssluniversal\include --prefix=d:\postgresqlarm64
+        # Configure for ARM64 cross-compilation.
+        # SSL is not yet supported for ARM64 libpq (WinUniversalOpenSSL does not
+        # ship ARM64 dev headers; building OpenSSL for ARM64 is a future task).
+        meson setup buildarm64 --cross-file $crossFile -Dssl=none --prefix=d:\postgresqlarm64
 
         # Build only the libpq client library.
         meson compile -C buildarm64 src/interfaces/libpq/libpq:shared_library
@@ -394,7 +353,6 @@ jobs:
         Get-ChildItem buildarm64 -Recurse -Filter "libpq.lib" | Copy-Item -Destination d:\postgresqlarm64\lib\
         Get-ChildItem buildarm64 -Recurse -Filter "libpq.dll" | Copy-Item -Destination d:\postgresqlarm64\bin\
         Copy-Item -Recurse src\include d:\postgresqlarm64\include
-        Copy-Item c:\OTHERBIN\openssluniversal\bin\arm64\*.dll d:\postgresqlarm64\bin\
 
   # =====================================================================
   # Build and test psqlodbc (standard and mimalloc, in parallel)
